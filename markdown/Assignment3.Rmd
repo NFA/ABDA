@@ -1,0 +1,17 @@
+---
+title: "Assignment 3"
+author: "Fredrik Nyström"
+date: '2019-09-19'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Task A
+
+## 1 
+NOT DONE YET
+
+## 2
