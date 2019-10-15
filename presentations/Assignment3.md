@@ -156,10 +156,10 @@ Task B.1
 ========================================================
 Inferring the bias in a coin flip. The probability of each outcome is given by the Bernoulli distribution with discrete outcomes of $y = 0$ or $y = 1$ for a fixed $\theta$.
 
-Probability density function:
+Probability mass function:
 
 ```r
-bernoulli_pdf <- function(y, theta) {
+bernoulli_pmf <- function(y, theta) {
   theta^y * (1 - theta)^(1 - y)
 }
 ```
@@ -169,8 +169,8 @@ Helper function that returns a named vector of results for a given $\theta$.
 ```r
 bernoulli_probability <- function(theta) {
   c(
-    "y = 0" = bernoulli_pdf(y = 0, theta = theta), 
-    "y = 1" = bernoulli_pdf(y = 1, theta = theta)
+    "y = 0" = bernoulli_pmf(y = 0, theta = theta), 
+    "y = 1" = bernoulli_pmf(y = 1, theta = theta)
   )
 }
 ```
@@ -210,7 +210,7 @@ Plot the likelihood function for $y = 0$ and $y = 1$.
 
 ```r
 plot(function(x) 
-        bernoulli_pdf(y = 0, theta = x), 
+        bernoulli_pmf(y = 0, theta = x), 
      from = 0, to = 1, 
      xlab = expression(theta), 
      ylab = "likelihood", 
@@ -223,7 +223,7 @@ plot(function(x)
 
 ```r
 plot(function(x) 
-        bernoulli_pdf(y = 1, theta = x), 
+        bernoulli_pmf(y = 1, theta = x), 
      from = 0, to = 1, 
      xlab = expression(theta), 
      ylab = "likelihood",
@@ -239,13 +239,13 @@ Implement equations 6.1 and 6.2.
 
 ```r
 # 6.1
-bernoulli_pdf <- function(y, theta) {
+bernoulli_pmf <- function(y, theta) {
   theta^y * (1 - theta)^(1 - y)
 }
 
 #6.2
 bernoulli_likelihood <- function(y, theta) {
-  prod(bernoulli_pdf(y = y, theta = theta))
+  prod(bernoulli_pmf(y = y, theta = theta))
 }
 ```
 ***
@@ -279,10 +279,10 @@ Task B.4b&c
 ========================================================
 left: 50%
 incremental: true
-Implement the logarithm versions of the pdf and the likelihood. Evaluate the log-likelihood for larger $n$ without problems of under- or overflow. Exponentiate the result.
+Implement the logarithm versions of the pmf and the likelihood. Evaluate the log-likelihood for larger $n$ without problems of under- or overflow. Exponentiate the result.
 
 ```r
-bernoulli_logpdf <- function(y, theta) {
+bernoulli_logpmf <- function(y, theta) {
   y*log(theta) + (1 - theta)*log(1 - theta)  
 }
 
