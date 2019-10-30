@@ -181,7 +181,7 @@ plot(function(x)
 ```
 Task B.4a
 ========================================================
-left: 40%
+left: 50%
 incremental: true
 Implement equations 6.1 and 6.2.
 ```{r}
@@ -205,13 +205,16 @@ coin_toss <- function(n) {
 }
 ```
 ```{r}
-bernoulli_likelihood(y = coin_toss(n = 10), theta = 0.5)
-bernoulli_likelihood(y = coin_toss(n = 1e3), theta = 0.5)
-bernoulli_likelihood(y = coin_toss(n = 1e5), theta = 0.5)
+bernoulli_likelihood(y = coin_toss(n = 10), 
+                     theta = 0.5)
+bernoulli_likelihood(y = coin_toss(n = 1e3), 
+                     theta = 0.5)
+bernoulli_likelihood(y = coin_toss(n = 1e5), 
+                     theta = 0.5)
 ```
 Task B.4b&c
 ========================================================
-left: 50%
+left: 55%
 incremental: true
 Implement the logarithm versions of the pmf and the likelihood. Evaluate the log-likelihood for larger $n$ without problems of under- or overflow. Exponentiate the result.
 ```{r}
@@ -227,9 +230,12 @@ bernoulli_loglikelihood <- function(y, theta) {
 ```
 ***
 ```{r}
-bernoulli_loglikelihood(y = coin_toss(n = 10), theta = 0.5)
-bernoulli_loglikelihood(y = coin_toss(n = 1e3), theta = 0.5)
-bernoulli_loglikelihood(y = coin_toss(n = 1e5), theta = 0.5)
+bernoulli_loglikelihood(y = coin_toss(n = 10), 
+                        theta = 0.5)
+bernoulli_loglikelihood(y = coin_toss(n = 1e3), 
+                        theta = 0.5)
+bernoulli_loglikelihood(y = coin_toss(n = 1e5), 
+                        theta = 0.5)
 c(exp(-6.9314), exp(-693.14), exp(-69314))
 ```
 Task B.4d

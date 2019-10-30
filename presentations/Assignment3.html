@@ -1032,7 +1032,7 @@ Negative 0.00001    0.94905
 </section>
 <section data-transition="linear" data-transition-speed="default">
 <h3>Task B.4a</h3>
-<div class="column column1 slideContent" style="width: 38%;" >
+<div class="column column1 slideContent" style="width: 48%;" >
 <p>Implement equations 6.1 and 6.2.</p>
 
 <pre class="fragment"><code class="r"># 6.1
@@ -1049,24 +1049,27 @@ bernoulli_likelihood &lt;- function(y, theta) {
 
 </div>
 
-<div class="column column2 slideContent" style="width: 58%;" >
+<div class="column column2 slideContent" style="width: 48%;" >
 
 
 <p class="fragment">Create a vector of \( n \) coin flips. Evaluate the likelihood function for \( \theta \) for \( n = {10, 1000, 100000} \). What happens for large values of \( n \)?</p>
 
-<pre class="fragment"><code class="r">bernoulli_likelihood(y = coin_toss(n = 10), theta = 0.5)
+<pre class="fragment"><code class="r">bernoulli_likelihood(y = coin_toss(n = 10), 
+                     theta = 0.5)
 </code></pre>
 
 <pre class="fragment"><code>[1] 0.0009765625
 </code></pre>
 
-<pre class="fragment"><code class="r">bernoulli_likelihood(y = coin_toss(n = 1e3), theta = 0.5)
+<pre class="fragment"><code class="r">bernoulli_likelihood(y = coin_toss(n = 1e3), 
+                     theta = 0.5)
 </code></pre>
 
 <pre class="fragment"><code>[1] 9.332636e-302
 </code></pre>
 
-<pre class="fragment"><code class="r">bernoulli_likelihood(y = coin_toss(n = 1e5), theta = 0.5)
+<pre class="fragment"><code class="r">bernoulli_likelihood(y = coin_toss(n = 1e5), 
+                     theta = 0.5)
 </code></pre>
 
 <pre class="fragment"><code>[1] 0

@@ -233,7 +233,7 @@ plot(function(x)
 <img src="Assignment3-figure/unnamed-chunk-15-1.png" title="plot of chunk unnamed-chunk-15" alt="plot of chunk unnamed-chunk-15" style="display: block; margin: auto;" />
 Task B.4a
 ========================================================
-left: 40%
+left: 50%
 incremental: true
 Implement equations 6.1 and 6.2.
 
@@ -253,7 +253,8 @@ Create a vector of $n$ coin flips. Evaluate the likelihood function for $\theta$
 
 
 ```r
-bernoulli_likelihood(y = coin_toss(n = 10), theta = 0.5)
+bernoulli_likelihood(y = coin_toss(n = 10), 
+                     theta = 0.5)
 ```
 
 ```
@@ -261,7 +262,8 @@ bernoulli_likelihood(y = coin_toss(n = 10), theta = 0.5)
 ```
 
 ```r
-bernoulli_likelihood(y = coin_toss(n = 1e3), theta = 0.5)
+bernoulli_likelihood(y = coin_toss(n = 1e3), 
+                     theta = 0.5)
 ```
 
 ```
@@ -269,7 +271,8 @@ bernoulli_likelihood(y = coin_toss(n = 1e3), theta = 0.5)
 ```
 
 ```r
-bernoulli_likelihood(y = coin_toss(n = 1e5), theta = 0.5)
+bernoulli_likelihood(y = coin_toss(n = 1e5), 
+                     theta = 0.5)
 ```
 
 ```
@@ -277,7 +280,7 @@ bernoulli_likelihood(y = coin_toss(n = 1e5), theta = 0.5)
 ```
 Task B.4b&c
 ========================================================
-left: 50%
+left: 55%
 incremental: true
 Implement the logarithm versions of the pmf and the likelihood. Evaluate the log-likelihood for larger $n$ without problems of under- or overflow. Exponentiate the result.
 
@@ -295,7 +298,8 @@ bernoulli_loglikelihood <- function(y, theta) {
 ***
 
 ```r
-bernoulli_loglikelihood(y = coin_toss(n = 10), theta = 0.5)
+bernoulli_loglikelihood(y = coin_toss(n = 10), 
+                        theta = 0.5)
 ```
 
 ```
@@ -303,7 +307,8 @@ bernoulli_loglikelihood(y = coin_toss(n = 10), theta = 0.5)
 ```
 
 ```r
-bernoulli_loglikelihood(y = coin_toss(n = 1e3), theta = 0.5)
+bernoulli_loglikelihood(y = coin_toss(n = 1e3), 
+                        theta = 0.5)
 ```
 
 ```
@@ -311,7 +316,8 @@ bernoulli_loglikelihood(y = coin_toss(n = 1e3), theta = 0.5)
 ```
 
 ```r
-bernoulli_loglikelihood(y = coin_toss(n = 1e5), theta = 0.5)
+bernoulli_loglikelihood(y = coin_toss(n = 1e5), 
+                        theta = 0.5)
 ```
 
 ```

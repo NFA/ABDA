@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+  <head>
+    <title>Applied Bayesian Data Analysis</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Fredrik Nyström" />
+    <meta name="date" content="2019-10-28" />
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: left, bottom, title-slide
+
+# Applied Bayesian Data Analysis
+## Assignment 4
+### Fredrik Nyström
+### 2019-10-28
+
+---
+
+
+
+## Table of Contents
+
+* [Task A.1](#a1)
+  * [Slice sampler](#slicesampler)
+* [Task A.2](#a2)
+---
+name: a1
+## Task 1
+Recreate Figure 6.4 using STAN and/or slice sampling.
+
+ - Priors, beta(100, 100), beta(18.25, 6.75), beta(1, 1)
+ - Bernoulli likelihood
+ - Data, z = 17, N = 20
+
+.center[![Figure 6.4 from Kruschke](../images/Figure6.4.png)]
+
+---
+
+## Stan model code: Prior &amp; Likelihood
+
+
+```stan
+// prior
+parameters {
+  real&lt;lower = 0, upper = 1&gt; theta;
+}
+model {
+  theta ~ beta(`${a}`, `${b}`);
+}
+```
+
+
+```stan
+// likelihood
+data {
+  int&lt;lower = 0&gt; N;
+  int y[N];
+}
+
+parameters {
+  real&lt;lower = 0, upper = 1&gt; theta;
+}
+model {
+  y ~ bernoulli(theta);
+}
+
+```
+---
+## Stan model code: Posterior
+
+```stan
+// posterior
+data {
+  int&lt;lower = 0&gt; N;
+  int y[N];
+}
+
+parameters {
+  real&lt;lower = 0, upper = 1&gt; theta;
+}
+
+model {
+  theta ~ beta(`${a}`, `${b}`);
+  y ~ bernoulli(theta);
+}
+```
+
+
+---
+## String interpolation for prior parameters
+
+
+
+```r
+# Specify the shape parameters for the beta priors, 
+# used for string interpolation
+beta_left   &lt;- list(a = 100,   b = 100)
+beta_middle &lt;- list(a = 18.25, b = 6.75)
+beta_right  &lt;- list(a = 1,     b = 1)
+
+# Prepare the prior code for each prior by string interpolation
+left_prior_code   &lt;- str_interp(prior_code, beta_left)
+middle_prior_code &lt;- str_interp(prior_code, beta_middle)
+right_prior_code  &lt;- str_interp(prior_code, beta_right)
+
+# Prepare the posterior code for each prior by string interpolation
+left_posterior_code   &lt;- str_interp(posterior_code, beta_left)
+middle_posterior_code &lt;- str_interp(posterior_code, beta_middle)
+right_posterior_code  &lt;- str_interp(posterior_code, beta_right)
+```
+
+---
+## The data
+
+
+```r
+# Convenience function to convert the input data to the format 
+# Stan expects
+get_data &lt;- function(ys) { list(y = ys, N = length(ys)) }
+
+# Data for Figure 6.4. 
+# z = 17 successes out of N = 20 trials 
+y &lt;- c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0)
+```
+---
+## Stan compilation
+
+
+
+```r
+# Compile the code. Sampling from the likelihood and the posterior needs the 
+# data supplied as an argument
+left_prior      &lt;- stan(model_code = left_prior_code)
+left_likelihood &lt;- stan(model_code = likelihood_code, data = get_data(y))
+left_posterior  &lt;- stan(model_code = left_posterior_code, data = get_data(y))
+
+middle_prior      &lt;- stan(model_code = middle_prior_code)
+middle_likelihood &lt;- stan(model_code = likelihood_code, data = get_data(y))
+middle_posterior  &lt;- stan(model_code = middle_posterior_code, data = get_data(y))
+
+right_prior      &lt;- stan(model_code = right_prior_code)
+right_likelihood &lt;- stan(model_code = likelihood_code, data = get_data(y))
+right_posterior  &lt;- stan(model_code = right_posterior_code, data = get_data(y))
+```
+---
+## Extract the posterior samples from the chains
+
+
+```r
+# Extract samples from the chains
+left_prior_samples      &lt;- extract(left_prior)$theta
+left_likelihood_samples &lt;- extract(left_likelihood)$theta
+left_posterior_samples  &lt;- extract(left_posterior)$theta
+
+middle_prior_samples      &lt;- extract(middle_prior)$theta
+middle_likelihood_samples &lt;- extract(middle_likelihood)$theta
+middle_posterior_samples  &lt;- extract(middle_posterior)$theta
+
+right_prior_samples      &lt;- extract(right_prior)$theta
+right_likelihood_samples &lt;- extract(right_likelihood)$theta
+right_posterior_samples  &lt;- extract(right_posterior)$theta
+```
+---
+## Construct the plots
+
+
+```r
+left_prior_plot      &lt;- ~plotPost(left_prior_samples, showMode = TRUE, cex = 1,
+                                  main = "Prior beta(100, 100)", xlab = "theta")
+left_likelihood_plot &lt;- ~plotPost(left_likelihood_samples, showMode = TRUE, cex = 1,
+                                  main = "Likelihood (Bernoulli)", xlab = "theta")
+left_posterior_plot  &lt;- ~plotPost(left_posterior_samples, showMode = TRUE, cex = 1,
+                                  main = "Posterior (beta)", xlab = "theta")
+
+middle_prior_plot      &lt;- ~plotPost(middle_prior_samples, showMode = TRUE, cex = 1,
+                                  main = "Prior beta(18.25, 6.75)", xlab = "theta")
+middle_likelihood_plot &lt;- ~plotPost(middle_likelihood_samples, showMode = TRUE, cex = 1,
+                                  main = "Likelihood (Bernoulli)", xlab = "theta")
+middle_posterior_plot  &lt;- ~plotPost(middle_posterior_samples, showMode = TRUE, cex = 1,
+                                  main = "Posterior (beta)", xlab = "theta")
+
+right_prior_plot      &lt;- ~plotPost(right_prior_samples, showMode = TRUE, cex = 1,
+                                    main = "Prior beta(1, 1)", xlab = "theta")
+right_likelihood_plot &lt;- ~plotPost(right_likelihood_samples, showMode = TRUE, cex = 1,
+                                    main = "Likelihood (Bernoulli)", xlab = "theta")
+right_posterior_plot  &lt;- ~plotPost(right_posterior_samples, showMode = TRUE, cex = 1,
+                                    main = "Posterior (beta)", xlab = "theta")
+```
+---
+## Arrange the plot in a grid
+
+
+```r
+left   &lt;- plot_grid(left_prior_plot, left_likelihood_plot, left_posterior_plot, ncol = 1)
+middle &lt;- plot_grid(middle_prior_plot, middle_likelihood_plot, middle_posterior_plot, ncol = 1)
+right  &lt;- plot_grid(right_prior_plot, right_likelihood_plot, right_posterior_plot, ncol = 1)
+
+plot_grid(left, middle, right, ncol = 3)
+```
+---
+## Recreated Figure 6.4 using MCMC with Stan
+
+.center[![Figure 6.4 from Kruschke](../images/Figure6.4_mcmc.png)]
+
+---
+name: slicesampler
+## Slice sampler
+
+.small[
+
+```r
+slice_sample &lt;- function(f, x_0, w) {
+  N &lt;- length(x_0)
+  x_1 &lt;- vector(mode = "numeric", length = N)
+  seq_dfrow &lt;- function(df) { seq_len(nrow(df)) }
+  # Step (a): Find the value of y that defines the slice
+  y &lt;- runif(n = 1, min = 0, max = f(x_0))
+  # Step (b): Randomly position the hyperrectangle
+  H &lt;- data.frame(L = rep(NA, N), R = rep(NA, N))
+  for (i in seq_dfrow(H)) {
+    H[i, "L"] &lt;- x_0[i] - runif(n = 1, min = 0, max = w[i])
+    H[i, "R"] &lt;- H[i, "L"] + w[i]
+  }
+  # Step (c): Sample from H, shrinking when points are rejected
+  repeat {
+    for (i in seq_along(x_1)) {
+      x_1[i] &lt;- H[i, "L"] + runif(n = 1) * (H[i, "R"] - H[i, "L"])
+    }
+    if (y &lt; f(x_1)) break
+    for (i in seq_dfrow(H)) {
+      if (x_1[i] &lt; x_0[i]) {
+        H[i, "L"] &lt;- x_1[i]
+      } else {
+        H[i, "R"] &lt;- x_1[i]
+      }
+    }
+  } 
+  return(x_1)
+}
+```
+]
+---
+## Slice sampler
+
+
+```r
+slice_sampling &lt;- function(posterior, initial_point, scale_estimates, iter = 2000, warmup = floor(iter/2)) {
+  chain_length &lt;- iter - warmup
+  samples &lt;- data.frame(matrix(vector(), iter, length(initial_point)))
+  
+  samples[1,] &lt;- slice_sample(f = posterior, x_0 = initial_point, w = scale_estimates)
+  for (i in 2:iter) {
+    samples[i, ] &lt;- slice_sample(f = posterior, x_0 = unlist(samples[i - 1,]), w = scale_estimates)    
+  }
+  
+  colnames(samples) &lt;- paste0("param", seq_along(colnames(samples)))
+  return(tail(samples, n = chain_length))
+}
+```
+---
+## Test of slice sampler
+
+.pull-left[
+
+```r
+log_pdf &lt;- function(x) {
+  mu1 &lt;- c(1, 2)
+  mu2 &lt;- c(-1, 2)
+  C1 &lt;- matrix(c(5, 5, 5, 10) , nrow = 2) / 10
+  C2 &lt;- matrix(c(10, -5, 5, 5), nrow = 2) / 10
+  x1 &lt;- x - mu1
+  x2 &lt;- x - mu2
+  
+  drop(
+    log(
+      0.5 * exp(-((x1 %*% solve(C1)) %*% x1)) + 
+      0.5 * exp(-((x2 %*% solve(C2)) %*% x2))
+  ))
+}
+
+pdf &lt;- function(x) exp(log_pdf(x))
+
+
+slice_it &lt;- function() {
+  slice_sampling(pdf, initial_point = c(1, 1), scale_estimates = c(1, 1), iter = 10000)
+}
+```
+]
+
+.pull-right[
+
+```r
+slices &lt;- slice_it()
+slices %&gt;% ggplot(aes(x = param1, y = param2)) + geom_density2d()
+```
+
+![](Assignment4_files/figure-html/unnamed-chunk-7-1.png)&lt;!-- --&gt;
+
+]
+
+---
+name: a2
+## Task A.2
+
+Given the following measurements `\(y = [1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1 ,1 ,1]\)`. 
+
+1. What is the probability of getting a head?
+  Give a 95% credible interval of this probability.
+2. What is the probability that `\(\theta &gt; 0.5\)` ?
+
+--
+
+```stan
+data {
+  int&lt;lower = 0&gt; N;
+  int y[N];
+}
+
+parameters {
+  real&lt;lower = 0, upper = 1&gt; theta;
+}
+
+model {
+  y ~ bernoulli(theta);
+}
+
+generated quantities {
+  int prob05;
+  prob05 = theta &gt; 0.5; 
+}
+
+```
+---
+## Sampling from the MCMC
+
+```r
+y &lt;- c(1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1)
+data &lt;- list(y = y, N = length(y))
+
+# Compile the stan model
+model &lt;- stan_model(file = model_file, model_name = "Task A.2")
+samples &lt;- sampling(model, data = data, iter = 12000)
+```
+
+
+--
+`\(\texttt{rstan}\)` default is 4 chains, 2,000 iterations, including 1,000 warm-up. Increased to 12,000.
+--
+
+
+[p184]
+
+*[...] for aspects of the distribution that are strongly influenced by sparse regions, such as the limits of the 95% HDI, the ESS needs to be relatively large. [...] One simple guideline is this: For reasonably accurate and stable estimates of the 95% HDI, an ESS of 10,000 is recommended.*
+--
+.center[
+ESS went from ~= 1500 to 10000
+]
+
+---
+## Summary from Stan
+
+```r
+samples
+```
+
+```
+## Inference for Stan model: f26aeaff8c4fa11f5fab3854aaa025d5.
+## 4 chains, each with iter=12000; warmup=6000; thin=1; 
+## post-warmup draws per chain=6000, total post-warmup draws=24000.
+## 
+##         mean se_mean   sd   2.5%   25%   50%   75% 97.5% n_eff Rhat
+## theta   0.75    0.00 0.10   0.53  0.69  0.76  0.83  0.92  9158    1
+## prob05  0.99    0.00 0.12   1.00  1.00  1.00  1.00  1.00 17521    1
+## lp__   -9.51    0.01 0.72 -11.56 -9.68 -9.22 -9.05 -9.00  8476    1
+## 
+## Samples were drawn using NUTS(diag_e) at Tue Oct 29 12:47:36 2019.
+## For each parameter, n_eff is a crude measure of effective sample size,
+## and Rhat is the potential scale reduction factor on split chains (at 
+## convergence, Rhat=1).
+```
+---
+## Sampling `\(\theta\)`  from MCMC
+
+
+```r
+params &lt;- rstan::extract(samples)
+params &lt;- as_tibble(params)
+params
+```
+
+```
+## # A tibble: 24,000 x 3
+##    theta prob05  lp__
+##    &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;
+##  1 0.797      1 -9.10
+##  2 0.677      1 -9.20
+##  3 0.716      1 -9.04
+##  4 0.703      1 -9.09
+##  5 0.776      1 -9.03
+##  6 0.672      1 -9.23
+##  7 0.841      1 -9.43
+##  8 0.602      1 -9.78
+##  9 0.649      1 -9.38
+## 10 0.677      1 -9.20
+## # ... with 23,990 more rows
+```
+---
+## Visualizing the posterior
+
+```r
+params %&gt;% ggplot(aes(x = theta)) + geom_histogram(binwidth = 0.01) + 
+  geom_vline(xintercept = mean(params[["theta"]]), color = "blue") + 
+  geom_vline(xintercept = map_estimate(params[["theta"]]), color = "green") + 
+  geom_vline(xintercept = median(params[["theta"]]), color = "red")
+```
+
+![](Assignment4_files/figure-html/unnamed-chunk-13-1.png)&lt;!-- --&gt;
+---
+## Expected probability of getting a head?
+
+We know since Chapter 6 with a prior of beta(1, 1), bernoulli likelihood and data of z = 11, N = 14, that the posterior will be a beta(1+11, 1 + 14 - 11) = beta(12, 4).
+
+Expected value of a beta distribution: `\(E[\theta] = \frac{a}{a+b}=0.75\)`
+
+
+
+```r
+mean(params[["theta"]])
+```
+
+```
+## [1] 0.7522105
+```
+Other estimators:
+
+```r
+map_estimate(params[["theta"]])
+```
+
+```
+## MAP = 0.77
+```
+
+```r
+median(params[["theta"]])
+```
+
+```
+## [1] 0.7614658
+```
+
+---
+## Give a 95% credible interval of this probability?
+
+```r
+hdi(params[["theta"]])
+```
+
+```
+## # Highest Density Interval
+## 
+##       89% HDI
+##  [0.60, 0.92]
+```
+
+```r
+hdi(params[["theta"]], ci = 0.95)
+```
+
+```
+## # Highest Density Interval
+## 
+##       95% HDI
+##  [0.55, 0.94]
+```
+
+89% CI is one of the conventions from another Bayesian textbook. Rationale is that 95% intervals are considered unstable with an effective sample size (ESS) of less than 10,000. 90% intervals are more stable. But the choice of x% is completely arbitrary, so why not use a prime number... 
+---
+## What is the probability that `\(\theta &gt; 0.5\)`
+
+
+```stan
+generated quantities {
+  int prob05;
+  prob05 = theta &gt; 0.5; 
+}
+```
+
+
+```r
+glimpse(params["prob05"])
+```
+
+```
+## Observations: 24,000
+## Variables: 1
+## $ prob05 &lt;dbl&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1...
+```
+
+```r
+mean(params[["prob05"]])
+```
+
+```
+## [1] 0.9857083
+```
+
+```r
+sum(params[["theta"]] &gt; 0.5)/length(params[["theta"]])
+```
+
+```
+## [1] 0.9857083
+```
+---
+## Task A2.b: Additional measurement
+
+Given an additional set of measurements `\(z = [1, 0, 0, 0, 0, 0, 0, 1, 1, 0]\)`, are `\(y\)` and `\(z\)` measurements from the same coin?
+
+
+```stan
+data {
+  int&lt;lower = 0&gt; Ny;     int y[Ny];
+  int&lt;lower = 0&gt; Nz;     int z[Nz];
+}
+
+parameters {
+  real&lt;lower = 0, upper = 1&gt; theta_y;
+  real&lt;lower = 0, upper = 1&gt; theta_z;
+}
+
+model {
+  y ~ bernoulli(theta_y);
+  z ~ bernoulli(theta_z);
+}
+
+generated quantities {
+  int y_gr_z = theta_y &gt; theta_z;
+  real&lt;lower = -1, upper = 1&gt; d_theta = theta_y - theta_z;
+}
+
+```
+---
+## Sampling from the MCMC
+
+```r
+y &lt;- c(1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1)
+z &lt;- c(1, 0, 0, 0, 0, 0, 0, 1, 1, 0)
+data &lt;- list(
+  y = y, Ny &lt;- length(y),
+  z = z, Nz &lt;- length(z)
+)
+
+# Compile the stan model
+model &lt;- stan_model(file = model_file, model_name = "Task A.2")
+samples &lt;- sampling(model, data = data, iter = 12000)
+```
+
+---
+## Summary from Stan
+
+```r
+samples
+```
+
+```
+## Inference for Stan model: 4771ce810009df4dd76f9289dc4fc1d7.
+## 4 chains, each with iter=12000; warmup=6000; thin=1; 
+## post-warmup draws per chain=6000, total post-warmup draws=24000.
+## 
+##           mean se_mean   sd   2.5%    25%    50%    75%  97.5% n_eff Rhat
+## theta_y   0.75    0.00 0.10   0.52   0.68   0.76   0.83   0.92 21088    1
+## theta_z   0.33    0.00 0.13   0.11   0.24   0.32   0.42   0.61 20226    1
+## y_gr_z    0.99    0.00 0.10   1.00   1.00   1.00   1.00   1.00 18359    1
+## d_theta   0.42    0.00 0.17   0.07   0.31   0.43   0.54   0.72 20764    1
+## lp__    -17.68    0.01 1.05 -20.47 -18.09 -17.36 -16.93 -16.66  9646    1
+## 
+## Samples were drawn using NUTS(diag_e) at Tue Oct 29 12:48:44 2019.
+## For each parameter, n_eff is a crude measure of effective sample size,
+## and Rhat is the potential scale reduction factor on split chains (at 
+## convergence, Rhat=1).
+```
+---
+## Sampling from the MCMC
+
+```r
+params &lt;- rstan::extract(samples)
+```
+
+
+1. Calculating the probability that `\(\theta_y &gt; \theta_z\)`.
+2. Creating a new variable `\(d\theta = \theta_y - \theta_z\)`, and calculating a 95% CI.
+
+```r
+mean(params[["y_gr_z"]])
+```
+
+```
+## [1] 0.9899583
+```
+
+```r
+hdi(params[["d_theta"]], ci = 0.95)
+```
+
+```
+## # Highest Density Interval
+## 
+##       95% HDI
+##  [0.08, 0.73]
+```
+---
+## Region of Practical Equivalence (ROPE)
+Probability of being outside a *specific* range that can be considered *practically no effect*. The region of practical equivalence (ROPE). HDI or full posterior + ROPE decision rule. ROPE range often suggested to be -0.1 to +0.1 on a standardized parameter (cmp. Cohen effect size).
+
+Reject or accept
+* HDI - either outside or inside. If in the middle - unclear.
+* full posterior - ROPE smaller than 2.5% or greater than 97.5%.
+
+.pull-left[
+
+```r
+# full posterior ROPE
+d_theta_rope &lt;- rope(params[["d_theta"]], ci = 1)
+d_theta_rope
+```
+
+```
+## # Proportion of samples inside the ROPE [-0.10, 0.10]:
+## 
+##  inside ROPE
+##       3.52 %
+```
+]
+.pull-right[
+
+```r
+plot(d_theta_rope) 
+```
+
+![](Assignment4_files/figure-html/unnamed-chunk-27-1.png)&lt;!-- --&gt;
+]
+---
+## Histogram of `\(p(d\theta \vert y,z)\)`
+3) Plot a histogram of `\(p(d\theta \vert y,z)\)`. Is it beta distributed?
+
+
+```r
+d_theta_hdi &lt;- hdi(params[["d_theta"]], ci = 0.95)
+params %&gt;% ggplot(aes(x = d_theta)) + geom_histogram(binwidth = 0.05) + 
+  geom_segment(x = d_theta_hdi$CI_low, xend = d_theta_hdi$CI_high, y = 0, yend = 0, color = "blue", size = 2)
+```
+
+.pull-left[
+![](Assignment4_files/figure-html/unnamed-chunk-29-1.png)&lt;!-- --&gt;
+]
+
+.pull-right[
+A beta distribution is defined on the interval `\([0, 1]\)`. The distribution for `\(d\theta\)` is not bounded on that interval, therefore it cannot be a beta distribution.
+]
+    </textarea>
+<style data-target="print-only">
+@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}
+@import url(https://cdn.jsdelivr.net/gh/tonsky/FiraCode@1.207/distr/fira_code.css);
+
+.remark-code, .remark-inline-code { font-family: 'Fira Code'; }
+.small { font-size: 70%; }
+</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"css": ["hygge", "nfa.css"],
+"ratio": "16:9",
+"highlightLines": true,
+"highlightStyle": "solarized-light",
+"highlightSpans": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
