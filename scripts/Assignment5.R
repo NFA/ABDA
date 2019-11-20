@@ -98,9 +98,16 @@ random %>% ggplot(aes(x = samples)) + geom_histogram(binwidth = 5, alpha = 0.3) 
        subtitle = paste(length(random$samples), "samples."),
        x = "Reaction time (ms)", y = "Number of samples")
 
-group_stats <- tibble(ind = 1:34, group_mean = mean(samples$mu_exp))
+# 3. Provide a figure that compare thetas obtained with our hierarchical 
+# Bayesian model above with thetas obtained by treating the participants 
+# individually and using the sample means (i.e. theta[j] is in the latter 
+#case the sample mean of the j:th participants logarithmic reaction times).
+#   a) Can you explain the differences?
+  
 
-sample_stats <- tibble(time = y, ind = ind) %>% 
+group_stats <- tibble(ind = ordered(1:34, levels = 1:34), group_mean = mean(samples$mu_exp))
+
+sample_stats <- tibble(time = y, ind = ordered(ind, levels = 1:34)) %>% 
   group_by(ind) %>% 
   summarize(mean = mean(time), sd = sd(time))
 
