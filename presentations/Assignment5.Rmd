@@ -1,0 +1,355 @@
+---
+title: "ABDA: Assignment 5"
+subtitle: Hierarchical Reaction Time Model
+author: "Fredrik Nyström"
+date: '2019-11-12'
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    nature:
+      css: ["hygge", "nfa.css"]
+      ratio: "16:9"
+      titleSlideClass: [left, bottom]
+      highlightLines: true
+      highlightStyle: solarized-light
+      highlightSpans: true
+      countIncrementalSlides: false
+---
+
+```{r setup, include=FALSE}
+library(here)
+library(tidyverse)
+library(rstan)
+library(tictoc)
+library(bayesboot)
+library(bayestestR)
+library(cowplot)
+library(gridGraphics)
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Table of Contents
+
+* [Task A.1](#a1)
+* [Task A.2](#a2)
+
+---
+name: a1
+## Data
+
+```{r, echo = FALSE}
+# Reaction times
+y <- scan(file = here("data", "A5_y.csv"), sep = ",", quiet = TRUE)
+# ID for the individuals
+ind <- scan(file = here("data", "A5_ind.csv"), sep = ",", quiet = TRUE)
+# My ID is 11
+
+reaction_time_data <- list(
+  N_data        = length(y),
+  reaction_time = y,
+  N_subjects    = length(unique(ind)),
+  subjects      = ind
+)
+```
+
+```{r}
+glimpse(reaction_time_data)
+```
+---
+
+## Model
+
+```{stan output.var="a5", echo = FALSE, cache = TRUE}
+data {
+   int<lower = 0> N_data;
+   vector[N_data] reaction_time;
+   
+   int<lower = 0> N_subjects;
+   int subjects[N_data];
+}
+
+transformed data {
+   vector[N_data] log_reaction_time = log(reaction_time);
+}
+
+parameters {
+   // Group level
+   real<lower = 0> mu;
+   real<lower = 0> tau;
+   // Individual level
+   vector<lower = 0>[N_subjects] theta;
+   real<lower = 0> sigma;
+} 
+
+model {
+   theta ~ normal(mu, tau);
+   for (i in 1:N_data) {
+      log_reaction_time[i] ~ normal(theta[subjects[i]], sigma);
+   }
+}
+
+generated quantities { 
+   real<lower = 0> mu_exp = exp(mu + tau^2/2 + sigma^2/2);
+   
+   vector<lower = 0>[N_subjects] theta_exp;
+   real<lower = 0> reaction_time_ppc;
+   
+   for (j in 1:N_subjects) {
+      theta_exp[j] = exp(theta[j] + sigma^2/2);
+   }
+   
+   reaction_time_ppc = exp(normal_rng(normal_rng(mu, tau), sigma));
+}
+
+```
+
+```{stan output.var="a5a", eval = FALSE, echo = TRUE}
+data {
+   int<lower = 0> N_data;
+   vector[N_data] reaction_time;
+   
+   int<lower = 0> N_subjects;
+   int subjects[N_data];
+}
+
+transformed data {
+   vector[N_data] log_reaction_time = log(reaction_time);
+}
+
+parameters {
+   // Group level
+   real<lower = 0> mu;
+   real<lower = 0> tau;
+   // Individual level
+   vector<lower = 0>[N_subjects] theta;
+   real<lower = 0> sigma;
+} 
+
+```
+
+---
+
+## Model cont.
+
+```{stan output.var="a5b", eval = FALSE, echo = TRUE}
+model {
+   theta ~ normal(mu, tau);
+   for (i in 1:N_data) {
+      log_reaction_time[i] ~ normal(theta[subjects[i]], sigma);
+   }
+}
+
+generated quantities { 
+   real<lower = 0> mu_exp = exp(mu + tau^2/2 + sigma^2/2);
+   
+   vector<lower = 0>[N_subjects] theta_exp;
+   real<lower = 0> reaction_time_ppc;
+   
+   for (j in 1:N_subjects) {
+      theta_exp[j] = exp(theta[j] + sigma^2/2);
+   }
+   
+   reaction_time_ppc = exp(normal_rng(normal_rng(mu, tau), sigma));
+}
+
+```
+
+---
+## Task A.1
+
+What is the expected reaction time for the individual named "the dude" in our data set (index = 4)?
+
+a) Answer this by providing a histogram and appropriate summaries.
+
+```{r, echo = TRUE, results = "hide"}
+stan_samples <- rstan::sampling(a5, data = reaction_time_data, iter = 8000)
+```
+```{r}
+samples <- rstan::extract(stan_samples)
+
+dude <- enframe(samples$theta_exp[, 4], name = NULL, value = "samples")
+dude_hdi <- hdi(dude$samples, ci = 0.95)
+
+
+dude_lbls <- c(
+  Mean = paste0("Mean:   ", format(mean(dude$samples), digits = 3)),
+  Median = paste0("Median: ", format(median(dude$samples), digits = 3)),
+  MAP = paste0("MAP:    ", format(map_estimate(dude$samples), digits = 3)),
+  HDI = paste0("HDI:    [", 
+         format(dude_hdi$CI_low, digits = 3),", ",
+         format(dude_hdi$CI_high, digits = 3), "]")
+)
+```
+
+---
+## Code for the histogram
+
+```{r, eval = FALSE}
+dude %>% ggplot(aes(x = samples)) + geom_histogram(binwidth = 5, alpha = 0.3) + 
+  geom_vline(aes(xintercept = mean(dude$samples), color = "Mean")) + 
+  geom_vline(aes(xintercept = map_estimate(dude$samples), color = "MAP")) + 
+  geom_vline(aes(xintercept = median(dude$samples), color = "Median")) + 
+  geom_segment(aes(x = dude_hdi$CI_low, xend = dude_hdi$CI_high, y = 0, yend = 0, color = "HDI"), size = 2) + 
+  scale_color_manual(name = "Estimates", labels = dude_lbls, 
+                     values = c(Mean = "blue", MAP = "green", Median = "red", HDI = "black")) +
+  theme_bw() + theme(legend.position = c(0.9, 0.85)) + 
+  labs(title = "Reaction time samples from the Dude",
+       subtitle = paste(length(dude$samples), "samples."),
+       x = "Reaction time (ms)", y = "Number of samples")
+```
+---
+## The histogram
+
+```{r, echo = FALSE}
+dude %>% ggplot(aes(x = samples)) + geom_histogram(binwidth = 5, alpha = 0.3) + 
+  geom_vline(aes(xintercept = mean(dude$samples), color = "Mean")) + 
+  geom_vline(aes(xintercept = map_estimate(dude$samples), color = "MAP")) + 
+  geom_vline(aes(xintercept = median(dude$samples), color = "Median")) + 
+  geom_segment(aes(x = dude_hdi$CI_low, xend = dude_hdi$CI_high, y = 0, yend = 0, color = "HDI"), size = 2) + 
+  scale_color_manual(name = "Estimates", labels = dude_lbls, 
+                     values = c(Mean = "blue", MAP = "green", Median = "red", HDI = "black")) +
+  theme_bw() + theme(legend.position = c(0.85, 0.85)) + 
+  labs(title = "Reaction time samples from the Dude",
+       subtitle = paste(length(dude$samples), "samples."),
+       x = "Reaction time (ms)", y = "Number of samples")
+```
+
+---
+## Task A.1.b
+
+With only one measurement, how are we able to give a 95% credible interval for "the dude"? This is not possible in frequentist statistics.
+
+In the hierarchical model all individuals share the same $\sigma$, so it is possible to get samples from the dude since the model utilizes the information from all other invidividuals in calculating the $\sigma$.
+
+---
+name: a2
+## Task A.2
+
+What is the group's reaction time?
+
+a) Given a new individual from our group, what is the expected
+   i) reaction time?
+   
+```{r}
+mean(samples$mu_exp)
+hdi(samples$mu_exp, ci = 0.95)
+```
+
+---
+## Task A.2
+   ii) predicted reaction time for a single measurement for that individual?
+```{stan output.var="a5c", eval = FALSE, echo = TRUE}
+generated quantities { 
+   real<lower = 0> mu_exp = exp(mu + tau^2/2 + sigma^2/2);
+   
+   vector<lower = 0>[N_subjects] theta_exp;
+   real<lower = 0> reaction_time_ppc; #<<
+   
+   for (j in 1:N_subjects) {
+      theta_exp[j] = exp(theta[j] + sigma^2/2);
+   }
+   
+   reaction_time_ppc = exp(normal_rng(normal_rng(mu, tau), sigma)); #<<
+}
+
+```
+---
+## Task A.2 Estimates
+   ii) predicted reaction time for a single measurement for that individual?
+ 
+```{r}
+random <- enframe(samples$reaction_time_ppc, name = NULL, value = "samples")
+random_hdi <- hdi(random$samples, ci = 0.95)
+
+rnd_lbls <- c(
+  Mean = paste0("Mean:   ", format(mean(random$samples), digits = 3)),
+  Median = paste0("Median: ", format(median(random$samples), digits = 3)),
+  MAP = paste0("MAP:    ", format(map_estimate(random$samples), digits = 3)),
+  HDI = paste0("HDI:    [", 
+               format(random_hdi$CI_low, digits = 3),", ",
+               format(random_hdi$CI_high, digits = 3), "]")
+)
+```
+---
+## Task A.2. Histogram code
+
+```{r, echo = TRUE, eval = FALSE}
+random %>% ggplot(aes(x = samples)) + geom_histogram(binwidth = 5, alpha = 0.3) + 
+  geom_vline(aes(xintercept = mean(random$samples), color = "Mean")) + 
+  geom_vline(aes(xintercept = map_estimate(random$samples), color = "MAP")) + 
+  geom_vline(aes(xintercept = median(random$samples), color = "Median")) + 
+  geom_segment(aes(x = random_hdi$CI_low, xend = random_hdi$CI_high, y = 0, yend = 0, color = "HDI"), size = 2) + 
+  scale_color_manual(name = "Estimates", labels = rnd_lbls, 
+                     values = c(Mean = "blue", MAP = "green", Median = "red", HDI = "black")) +
+  theme_bw() + theme(legend.position = c(0.9, 0.85)) + 
+  labs(title = "Reaction time samples from new random individual",
+       subtitle = paste(length(random$samples), "samples."),
+       x = "Reaction time (ms)", y = "Number of samples")
+```
+---
+## Task A.2. Histogram
+.pull-left[
+```{r, echo = FALSE}
+random %>% ggplot(aes(x = samples)) + geom_histogram(binwidth = 5, alpha = 0.3) + 
+  geom_vline(aes(xintercept = mean(random$samples), color = "Mean")) + 
+  geom_vline(aes(xintercept = map_estimate(random$samples), color = "MAP")) + 
+  geom_vline(aes(xintercept = median(random$samples), color = "Median")) + 
+  geom_segment(aes(x = random_hdi$CI_low, xend = random_hdi$CI_high, y = 0, yend = 0, color = "HDI"), size = 2) + 
+  scale_color_manual(name = "Estimates", labels = rnd_lbls, 
+                     values = c(Mean = "blue", MAP = "green", Median = "red", HDI = "black")) +
+  theme_bw() + theme(legend.position = c(0.9, 0.85)) + 
+  labs(title = "Reaction time samples from new random individual",
+       subtitle = paste(length(random$samples), "samples."),
+       x = "Reaction time (ms)", y = "Number of samples")
+```
+]
+
+.pull-right[
+iii) Compare the PPC histogram with Website data: 
+
+median = 273 ms
+
+mean = 284 ms
+]
+---
+## Task A.3
+Compare the thetas from the Bayesian hierarchical model with the sample means from the individuals.
+
+```{r, results = "hide", warnings = FALSE}
+group_stats <- tibble(ind = 1:34, group_mean = mean(samples$mu_exp))
+
+sample_stats <- tibble(time = y, ind = ind) %>% 
+  group_by(ind) %>% 
+  summarize(mean = mean(time), sd = sd(time))
+
+thetas <- as_tibble(samples$theta_exp) %>% 
+  pivot_longer(everything(), 
+               names_to = "ind", values_to = "time", 
+               names_pattern = "V(\\d+)") %>%
+  mutate(ind = ordered(ind, levels = 1:34))
+```
+
+---
+## Task A.3 Histogram code
+
+```{r, eval = FALSE}
+thetas %>% ggplot(aes(x = time)) + geom_histogram(binwidth = 5, alpha = 0.3) + 
+   geom_vline(data = sample_stats, aes(xintercept = mean)) + 
+   geom_vline(data = group_stats, aes(xintercept = group_mean), color = "blue") +
+   facet_wrap(~ ind) +
+   theme_bw()
+```
+---
+## Task A.3. Histogram
+Black histogram = sampled reaction time
+Black = calculated sample mean
+Blue = Sampled group mean
+
+```{r, echo = FALSE, fig.width=15}
+thetas %>% ggplot(aes(x = time)) + 
+   geom_histogram(binwidth = 5, alpha = 0.3) + 
+   geom_vline(data = sample_stats, aes(xintercept = mean)) + 
+   geom_vline(data = group_stats, aes(xintercept = group_mean), color = "blue") +
+   facet_wrap(~ ind, ncol = 7) +
+   theme_bw()
+```
+
