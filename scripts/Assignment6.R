@@ -24,7 +24,8 @@ reaction_time_data <- list(
    reaction_time = y,
    N_subjects    = length(unique(ind)),
    subjects      = ind,
-   is_child = child_subject
+   is_child = child_subject,
+   child_proportion = sum(child_subject)/length(unique(ind))
 )
 
 
@@ -60,6 +61,7 @@ hdi(samples_A6$phi, ci = 0.95)
 
 hdi.A5 <- hdi(samples_A5$tau, ci = 0.95)
 hdi.A6 <- hdi(samples_A6$tau, ci = 0.95)
+
 
 tau <- tibble(A5 = samples_A5$tau, A6 = samples_A6$tau) %>% 
    pivot_longer(cols = everything(), names_to = "model", values_to = "tau") %>% 
@@ -108,33 +110,121 @@ ggplot(data = tau, aes(x = tau)) +
 # Assignment 5. When plotting the prior you may plot it using the mean value of its dependent parameters.
 # a) Explain what you see and can you give an explanation to why the curves look like they do?
 
-N <- 1e4
-kids <- rnorm(n = N, mean = samples_A6$mu + samples_A6$phi, sd = samples_A6$tau)
-adults <- rnorm(n = N, mean = samples_A6$mu, sd = samples_A6$tau)
 
-hdi.kids <- hdi(kids, ci = 0.95)
+clear_x <- function() {
+   theme(axis.title.x = element_blank(),
+         axis.text.x = element_blank(),
+         axis.ticks.x = element_blank())
+}
+
+kids_prior <- ggplot(data = tibble(x = c(4.5, 7)), aes(x = x)) + 
+   mapply(function(mean, sd) {
+      stat_function(fun = dnorm, args = list(mean = mean, sd = sd), alpha = 0.01)
+   }, 
+   mean = samples_A6$mu[14000:16000] + samples_A6$phi[14000:16000],
+   sd = samples_A6$tau[14000:16000]) + 
+   stat_function(fun = dnorm, args = list(
+                       mean = mean(samples_A6$mu + samples_A6$phi),
+                       sd = mean(samples_A6$tau))) +
+   annotate("text", label = "Kids", x = -Inf, y = Inf, hjust = -1, vjust = 2, size = 2) +
+   clear_x() +
+   ggtitle("Prior distribution for expected log(reaction_time)", 
+           subtitle = "Plotted with the last 2000 MCMC draws, and the chain mean")
+
+adults_prior <- ggplot(data = tibble(x = c(4.5, 7)), aes(x = x)) + 
+   mapply(function(mean, sd) {
+      stat_function(fun = dnorm, args = list(mean = mean, sd = sd), alpha = 0.01)
+   }, 
+   mean = samples_A6$mu[14000:16000],
+   sd = samples_A6$tau[14000:16000]) + 
+   stat_function(fun = dnorm, args = list(
+      mean = mean(samples_A6$mu),
+      sd = mean(samples_A6$tau))) +
+   annotate("text", label = "Adults", x = -Inf, y = Inf, hjust = -1, vjust = 2, size = 2) +
+   clear_x()
+
+A5_prior <- ggplot(data = tibble(x = c(4.5, 7)), aes(x = x)) + 
+   mapply(function(mean, sd) {
+      stat_function(fun = dnorm, args = list(mean = mean, sd = sd), alpha = 0.01)
+   }, 
+   mean = samples_A5$mu[14000:16000],
+   sd = samples_A5$tau[14000:16000]) + 
+   stat_function(fun = dnorm, args = list(
+      mean = mean(samples_A5$mu),
+      sd = mean(samples_A5$tau))) +
+   annotate("text", label = "Assignment 5", x = -Inf, y = Inf, hjust = -1, vjust = 2, size = 2) +
+   xlab("log(reaction_time)") 
+
+
+
+q3 <- (kids_prior / adults_prior / A5_prior) * ylab("") * theme_bw()
+
+
+ggplot(data = tibble(x = c(4.5, 7)), aes(x = x)) + 
+   stat_function(fun = dnorm, args = 
+                    list(mean = mean(samples_A5$mu), sd = mean(samples_A5$tau)), 
+                 aes(color = "Assignment 5")) + 
+   stat_function(fun = dnorm, args = 
+                    list(mean = mean(samples_A6$mu), sd = mean(samples_A6$tau)), 
+                 aes(color = "Adults")) + 
+   stat_function(fun = dnorm, args = 
+                    list(mean = mean(samples_A6$mu + samples_A6$phi), sd = mean(samples_A6$tau)), 
+                 aes(color = "Kids")) +
+   theme_bw() + theme(legend.position = c(0.8, 0.9), legend.title = element_blank()) + 
+   ylab("") + xlab("log_reaction(time)") +
+   ggtitle("Prior distributions for log(reaction_time)", 
+   subtitle = "The adults, kids and from assignment 5")
+
+# 4
+#
+unknown <- samples_A6$reaction_time_ppc_unknown
+kid <- samples_A6$reaction_time_ppc_child
+adult <- samples_A6$reaction_time_ppc_adult
+
+hdi.unknown <- hdi(unknown, ci = 0.95)
+hdi.kid <- hdi(kid, ci = 0.95)
 hdi.adult <- hdi(adult, ci = 0.95)
 
-q3 <- tibble(kids = kids, adults = adults) %>% 
+mean.unknown <- mean(unknown)
+mean.kid <- mean(kid)
+mean.adult <- mean(adult)
+
+q4 <- tibble(kid = kid, unknown = unknown, adult = adult) %>% 
    pivot_longer(cols = everything(), names_to = "age", values_to = "reaction_time") %>% 
    mutate(age = factor(age))
 
+xdelta <- 15
+hh <- ggplot(data = q4, aes(x = reaction_time)) + 
+   geom_histogram(aes(y = ..density.., fill = age, color = age), alpha = 0.5, binwidth = 5) +
+   theme_bw() + theme(legend.position = c(0.8, 0.85)) + ylab("") + xlab("") +
+   coord_cartesian(xlim = c(90, 1000)) +
+   ggtitle("Posterior predictive distributions", 
+           subtitle = "Adult, kid and a proportionally mixed population")
 
-
-xdelta <- 0.05
-ggplot(data = q3, aes(x = reaction_time)) + 
-   geom_histogram(aes(y = ..density.., fill = age, color = age), alpha = 0.5, bins = 200) +
-   geom_segment(aes(x = mean(kids), xend = mean(kids), 
-                    y = -0.2, yend = -0.3, color = "kids")) + 
-   annotate("text", x = mean(kids), y = -0.15, label = format(mean(kids), digits = 2)) +
-   geom_segment(aes(x = mean(adults), xend = mean(adults),
-                    y = -0.45, yend = -0.55, color = "adults")) +
-   annotate("text", x = mean(adults), y = -0.4, label = format(mean(adults), digits = 2)) +
-   geom_segment(aes(x = hdi.kids$CI_low, xend = hdi(kids)$CI_high, y = -0.25, yend = -0.25, color = "kids"), size = 2) +
-   annotate("text", x = hdi.kids$CI_low - xdelta,  y = -0.25, label = format(hdi.kids$CI_low, digits = 2)) + 
-   annotate("text", x = hdi.kids$CI_high + xdelta, y = -0.25, label = format(hdi.kids$CI_high, digits = 2)) +
-   geom_segment(aes(x = hdi.adults$CI_low, xend = hdi.adults$CI_high, y = -0.5, yend = -0.5, color = "adults"), size = 2) +
-   annotate("text", x = hdi.adults$CI_low - xdelta,  y = -0.5, label = format(hdi.adults$CI_low, digits = 2)) + 
-   annotate("text", x = hdi.adults$CI_high + xdelta, y = -0.5, label = format(hdi.adults$CI_high, digits = 2)) +
-   theme_bw() + theme(legend.position = "none") + ylab("") + xlab("log(reaction_time")
+stats <- ggplot(data = q4, aes(x = reaction_time)) + 
+   geom_segment(aes(x = mean.kid, xend = mean.kid, 
+                    y = 3.25, yend = 2.75, color = "kid")) + 
+   annotate("text", x = mean.kid, y = 3.4, label = format(mean.kid, digits = 2)) +
+   geom_segment(aes(x = mean.adult, xend = mean.adult,
+                    y = 2.25, yend = 1.75, color = "adult")) +
+   annotate("text", x = mean.adult, y = 2.4, label = format(mean.adult, digits = 2)) +
+   geom_segment(aes(x = mean.unknown, xend = mean.unknown,
+                    y = 1.25, yend = 0.75, color = "unknown")) +
+   annotate("text", x = mean.unknown, y = 1.4, label = format(mean.unknown, digits = 2)) +
    
+   geom_segment(aes(x = hdi.kid$CI_low, xend = hdi.kid$CI_high, y = 3, yend = 3, color = "kid"), size = 2) +
+   annotate("text", x = hdi.kid$CI_low - xdelta,  y = 3, label = format(hdi.kid$CI_low, digits = 2)) + 
+   annotate("text", x = hdi.kid$CI_high + xdelta, y = 3, label = format(hdi.kid$CI_high, digits = 2)) +
+   geom_segment(aes(x = hdi.adult$CI_low, xend = hdi.adult$CI_high, y = 2, yend = 2, color = "adult"), size = 2) +
+   annotate("text", x = hdi.adult$CI_low - xdelta,  y = 2, label = format(hdi.adult$CI_low, digits = 2)) + 
+   annotate("text", x = hdi.adult$CI_high + xdelta, y = 2, label = format(hdi.adult$CI_high, digits = 2)) +
+   geom_segment(aes(x = hdi.unknown$CI_low, xend = hdi.unknown$CI_high, y = 1, yend = 1, color = "unknown"), size = 2) +
+   annotate("text", x = hdi.unknown$CI_low - xdelta,  y = 1, label = format(hdi.unknown$CI_low, digits = 2)) + 
+   annotate("text", x = hdi.unknown$CI_high + xdelta, y = 1, label = format(hdi.unknown$CI_high, digits = 2)) +
+   theme_bw() + ylab("") + coord_cartesian(xlim = c(90, 1000)) + theme(legend.position = "none") + 
+      theme(axis.title.y = element_blank(),
+            axis.text.y = element_blank(),
+            axis.ticks.y = element_blank())
+
+
+(hh / stats) + plot_layout(heights = c(5, 1))
